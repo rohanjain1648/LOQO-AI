@@ -81,12 +81,6 @@ graph LR
     A3b --> A4
     A4 --> OUT["📄 Final Output<br/>JSON + Screenplay"]
 
-    style A1 fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
-    style A2 fill:#bbdefb,stroke:#1565c0,stroke-width:2px
-    style A3a fill:#ffe0b2,stroke:#e65100,stroke-width:2px
-    style A3b fill:#ffe0b2,stroke:#e65100,stroke-width:2px
-    style A4 fill:#f8bbd0,stroke:#c62828,stroke-width:2px
-    style OUT fill:#e1bee7,stroke:#6a1b9a,stroke-width:2px
 ```
 
 **Key Design Decisions:**
@@ -171,13 +165,7 @@ graph TD
 
     LLM_LAYER -.-> LANGFUSE
     
-    style INPUT fill:#e8f5e8,stroke:#2e7d32
-    style EXTRACTION fill:#c8e6c9,stroke:#2e7d32
-    style LLM_LAYER fill:#bbdefb,stroke:#1565c0
-    style PARALLEL fill:#ffe0b2,stroke:#e65100
-    style ROUTING fill:#fff9c4,stroke:#f57f17
-    style OUTPUT fill:#e1bee7,stroke:#6a1b9a
-    style OBSERVE fill:#f8bbd0,stroke:#c62828
+
 ```
 
 ### Data Flow Summary
@@ -517,15 +505,7 @@ graph TD
     
     FMT --> END_NODE(["⏹ END"])
 
-    style START fill:#10b981,stroke:#047857,color:#fff
-    style END_NODE fill:#6b7280,stroke:#4b5563,color:#fff
-    style EXT fill:#c8e6c9,stroke:#2e7d32
-    style EDIT fill:#bbdefb,stroke:#1565c0
-    style VIS fill:#ffe0b2,stroke:#e65100
-    style HDL fill:#ffe0b2,stroke:#e65100
-    style QA fill:#f8bbd0,stroke:#c62828
-    style ROUTER fill:#fff9c4,stroke:#f57f17
-    style FMT fill:#e1bee7,stroke:#6a1b9a
+
 ```
 
 ### Workflow Requirements Checklist
@@ -574,12 +554,7 @@ graph TD
     T -->|"'headline' in targets<br/>(editor+visual OK)"| RH["🔄 RETRY HEADLINE"]
     T -->|"no targets<br/>(edge case)"| FIN2["✅ FINALIZE"]
 
-    style FIN fill:#c8e6c9,stroke:#2e7d32
-    style FIN2 fill:#c8e6c9,stroke:#2e7d32
-    style FORCE fill:#fff9c4,stroke:#f57f17
-    style RE fill:#bbdefb,stroke:#1565c0
-    style RV fill:#ffe0b2,stroke:#e65100
-    style RH fill:#ffe0b2,stroke:#e65100
+
 ```
 
 ### Why Single-Target Priority Retry?
