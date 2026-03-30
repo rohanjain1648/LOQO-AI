@@ -81,12 +81,12 @@ graph LR
     A3b --> A4
     A4 --> OUT["📄 Final Output<br/>JSON + Screenplay"]
 
-    style A1 fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    style A2 fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    style A3a fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style A3b fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style A4 fill:#fce4ec,stroke:#c62828,stroke-width:2px
-    style OUT fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+    style A1 fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
+    style A2 fill:#bbdefb,stroke:#1565c0,stroke-width:2px
+    style A3a fill:#ffe0b2,stroke:#e65100,stroke-width:2px
+    style A3b fill:#ffe0b2,stroke:#e65100,stroke-width:2px
+    style A4 fill:#f8bbd0,stroke:#c62828,stroke-width:2px
+    style OUT fill:#e1bee7,stroke:#6a1b9a,stroke-width:2px
 ```
 
 **Key Design Decisions:**
@@ -171,13 +171,13 @@ graph TD
 
     LLM_LAYER -.-> LANGFUSE
     
-    style INPUT fill:#e0f2f1,stroke:#00695c
-    style EXTRACTION fill:#e8f5e9,stroke:#2e7d32
-    style LLM_LAYER fill:#e3f2fd,stroke:#1565c0
-    style PARALLEL fill:#fff3e0,stroke:#e65100
+    style INPUT fill:#e8f5e8,stroke:#2e7d32
+    style EXTRACTION fill:#c8e6c9,stroke:#2e7d32
+    style LLM_LAYER fill:#bbdefb,stroke:#1565c0
+    style PARALLEL fill:#ffe0b2,stroke:#e65100
     style ROUTING fill:#fff9c4,stroke:#f57f17
-    style OUTPUT fill:#f3e5f5,stroke:#6a1b9a
-    style OBSERVE fill:#fce4ec,stroke:#c62828
+    style OUTPUT fill:#e1bee7,stroke:#6a1b9a
+    style OBSERVE fill:#f8bbd0,stroke:#c62828
 ```
 
 ### Data Flow Summary
@@ -519,13 +519,13 @@ graph TD
 
     style START fill:#10b981,stroke:#047857,color:#fff
     style END_NODE fill:#6b7280,stroke:#4b5563,color:#fff
-    style EXT fill:#e8f5e9,stroke:#2e7d32
-    style EDIT fill:#e3f2fd,stroke:#1565c0
-    style VIS fill:#fff3e0,stroke:#e65100
-    style HDL fill:#fff3e0,stroke:#e65100
-    style QA fill:#fce4ec,stroke:#c62828
+    style EXT fill:#c8e6c9,stroke:#2e7d32
+    style EDIT fill:#bbdefb,stroke:#1565c0
+    style VIS fill:#ffe0b2,stroke:#e65100
+    style HDL fill:#ffe0b2,stroke:#e65100
+    style QA fill:#f8bbd0,stroke:#c62828
     style ROUTER fill:#fff9c4,stroke:#f57f17
-    style FMT fill:#f3e5f5,stroke:#6a1b9a
+    style FMT fill:#e1bee7,stroke:#6a1b9a
 ```
 
 ### Workflow Requirements Checklist
