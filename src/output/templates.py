@@ -43,7 +43,18 @@ Narration Quality: {stars_narration} ({score_narration}/5)
 Visual Planning:   {stars_visual} ({score_visual}/5)
 Headline Quality:  {stars_headline} ({score_headline}/5)
 Overall Average:   {avg_score}/5 {pass_status}
-Retries Used: {retry_count}/3
+Retries Used: {retry_count}
+═══════════════════════════════════════════════════════════
+"""
+
+RETRY_TELEMETRY_TEMPLATE = """
+═══════════════════════════════════════════════════════════
+🔄 RETRY TELEMETRY
+═══════════════════════════════════════════════════════════
+Total Attempts:    {total_attempts}
+Score Progression: {score_progression}
+Best Attempt:      #{best_attempt}
+Agent Retries:     Editor: {editor_retries}/5 | Visual: {visual_retries}/5 | Headline: {headline_retries}/5
 ═══════════════════════════════════════════════════════════
 """
 

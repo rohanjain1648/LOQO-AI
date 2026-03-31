@@ -3,6 +3,8 @@ Prompts for the Headline Generator Agent.
 
 The Headline Agent creates segment-wise changing headlines, subheadlines,
 and top tags for the broadcast overlay graphics.
+
+Includes 3-tier progressive escalation for retries.
 """
 
 HEADLINE_SYSTEM_PROMPT = """You are a broadcast graphics producer at a major TV news network. Your job is to create on-screen text overlays (headlines, subheadlines, and tags) for each segment of a news broadcast.
@@ -49,10 +51,75 @@ For each segment, generate:
 
 Ensure headlines CHANGE across segments and match each segment's narration content."""
 
-HEADLINE_RETRY_SECTION = """⚠️ REVISION REQUIRED:
+# ═══════════════════════════════════════
+# Progressive Retry Templates (3 tiers)
+# ═══════════════════════════════════════
+
+HEADLINE_RETRY_TIER_1 = """⚠️ REVISION REQUIRED (Attempt {attempt} of {max_attempts}):
 Your previous headlines were reviewed by QA. Fix these issues:
 {feedback}
 
 Keep headlines that were good. Only fix the specific issues mentioned."""
 
+HEADLINE_RETRY_TIER_2 = """⚠️ CRITICAL REVISION — ATTEMPT {attempt} OF {max_attempts}:
+Your previous {prev_attempts} attempt(s) failed QA.
+
+YOUR PREVIOUS HEADLINES (for reference — fix issues, keep what works):
+{previous_headlines_json}
+
+QA FEEDBACK:
+{feedback}
+
+RULES FOR THIS REVISION:
+- Fix ONLY the segments mentioned in feedback
+- Keep headlines for other segments unchanged
+- main_headline MUST be ≤ 40 characters
+- subheadline MUST be ≤ 60 characters
+- NO two adjacent segments may have the same main_headline"""
+
+HEADLINE_RETRY_TIER_3 = """🚨 FINAL ATTEMPT — ATTEMPT {attempt} OF {max_attempts}:
+
+YOUR BEST PREVIOUS HEADLINES:
+{best_previous_headlines_json}
+
+REMAINING ISSUES TO FIX (fix ONLY these, change NOTHING else):
+{specific_fix_list}
+
+Output the complete corrected headline plan."""
+
+# ── Tier selection helper ──
+def get_headline_retry_section(
+    attempt: int,
+    max_attempts: int,
+    feedback: str,
+    previous_headlines_json: str = "",
+    best_previous_headlines_json: str = "",
+    specific_fix_list: str = "",
+) -> str:
+    """Returns the appropriate retry prompt tier based on attempt number."""
+    if attempt <= 2:
+        return HEADLINE_RETRY_TIER_1.format(
+            attempt=attempt,
+            max_attempts=max_attempts,
+            feedback=feedback,
+        )
+    elif attempt <= 4:
+        return HEADLINE_RETRY_TIER_2.format(
+            attempt=attempt,
+            max_attempts=max_attempts,
+            prev_attempts=attempt - 1,
+            previous_headlines_json=previous_headlines_json or "N/A",
+            feedback=feedback,
+        )
+    else:
+        return HEADLINE_RETRY_TIER_3.format(
+            attempt=attempt,
+            max_attempts=max_attempts,
+            best_previous_headlines_json=best_previous_headlines_json or "N/A",
+            specific_fix_list=specific_fix_list or feedback,
+        )
+
 HEADLINE_NO_RETRY = ""
+
+# Legacy support
+HEADLINE_RETRY_SECTION = HEADLINE_RETRY_TIER_1

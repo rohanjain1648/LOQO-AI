@@ -9,7 +9,7 @@ Usage:
 Outputs:
     - output.json — Structured JSON screenplay
     - screenplay.txt — Human-readable screenplay
-    - Console — Screenplay + QA scores
+    - Console — Screenplay + QA scores + retry telemetry
 """
 
 import sys
@@ -49,6 +49,11 @@ def main():
                 "article_url": url,
                 "retry_count": 0,
                 "errors": [],
+                "editor_retry_count": 0,
+                "visual_retry_count": 0,
+                "headline_retry_count": 0,
+                "retry_history": [],
+                "retry_decisions": [],
             },
             config={"callbacks": [langfuse_handler]},
         )
@@ -77,8 +82,22 @@ def main():
             avg = round(sum(qa_scores.values()) / len(qa_scores), 1)
             print(f"\n📊 QA Scores: {qa_scores}")
             print(f"📈 Average: {avg}/5")
-            print(f"🔄 Retries used: {result.get('retry_count', 0)}/3")
-            print(f"{'✅ PASSED' if result.get('qa_pass') else '⚠️ BEST EFFORT (max retries reached)'}")
+            print(f"🔄 QA Cycles: {result.get('retry_count', 0)}")
+            print(f"{'✅ PASSED' if result.get('qa_pass') else '⚠️ BEST EFFORT'}")
+
+        # ── Retry Telemetry ──
+        retry_history = result.get("retry_history", [])
+        if retry_history and len(retry_history) > 1:
+            print(f"\n🔄 Retry Telemetry:")
+            print(f"   Total attempts: {len(retry_history)}")
+            score_progression = " → ".join(f"{h.get('avg_score', 0):.1f}" for h in retry_history)
+            print(f"   Score progression: {score_progression}")
+            best_idx = result.get("best_attempt_index", 0)
+            print(f"   Best attempt: #{best_idx + 1}")
+            print(f"   Agent retries: "
+                  f"Editor {result.get('editor_retry_count', 0)}/5, "
+                  f"Visual {result.get('visual_retry_count', 0)}/5, "
+                  f"Headline {result.get('headline_retry_count', 0)}/5")
 
         # ── Errors ──
         errors = result.get("errors", [])

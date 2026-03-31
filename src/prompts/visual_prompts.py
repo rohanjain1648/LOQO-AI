@@ -3,6 +3,8 @@ Prompts for the Visual Packaging Agent.
 
 The Visual Agent assigns layouts, source/AI visuals, and transitions
 to each narration segment.
+
+Includes 3-tier progressive escalation for retries.
 """
 
 VISUAL_SYSTEM_PROMPT = """You are a senior visual director for a TV news broadcast. Your job is to plan the on-screen visuals for each segment of a news broadcast script.
@@ -62,10 +64,74 @@ For each segment, assign:
 
 Remember: last segment MUST use "fade_out" transition."""
 
-VISUAL_RETRY_SECTION = """⚠️ REVISION REQUIRED:
+# ═══════════════════════════════════════
+# Progressive Retry Templates (3 tiers)
+# ═══════════════════════════════════════
+
+VISUAL_RETRY_TIER_1 = """⚠️ REVISION REQUIRED (Attempt {attempt} of {max_attempts}):
 Your previous visual plan was reviewed by QA. Fix these issues:
 {feedback}
 
 Keep visual assignments that were good. Only fix the specific issues mentioned."""
 
+VISUAL_RETRY_TIER_2 = """⚠️ CRITICAL REVISION — ATTEMPT {attempt} OF {max_attempts}:
+Your previous {prev_attempts} attempt(s) failed QA.
+
+YOUR PREVIOUS VISUAL PLAN (for reference — fix issues, keep what works):
+{previous_visual_json}
+
+QA FEEDBACK:
+{feedback}
+
+RULES FOR THIS REVISION:
+- Fix ONLY the segments mentioned in feedback
+- Keep visual assignments for other segments unchanged
+- Ensure mutual exclusivity: each segment has EITHER source_image_url OR ai_support_visual_prompt, never both
+- Last segment MUST use "fade_out" transition"""
+
+VISUAL_RETRY_TIER_3 = """🚨 FINAL ATTEMPT — ATTEMPT {attempt} OF {max_attempts}:
+
+YOUR BEST PREVIOUS VISUAL PLAN:
+{best_previous_visual_json}
+
+REMAINING ISSUES TO FIX (fix ONLY these, change NOTHING else):
+{specific_fix_list}
+
+Output the complete corrected visual plan."""
+
+# ── Tier selection helper ──
+def get_visual_retry_section(
+    attempt: int,
+    max_attempts: int,
+    feedback: str,
+    previous_visual_json: str = "",
+    best_previous_visual_json: str = "",
+    specific_fix_list: str = "",
+) -> str:
+    """Returns the appropriate retry prompt tier based on attempt number."""
+    if attempt <= 2:
+        return VISUAL_RETRY_TIER_1.format(
+            attempt=attempt,
+            max_attempts=max_attempts,
+            feedback=feedback,
+        )
+    elif attempt <= 4:
+        return VISUAL_RETRY_TIER_2.format(
+            attempt=attempt,
+            max_attempts=max_attempts,
+            prev_attempts=attempt - 1,
+            previous_visual_json=previous_visual_json or "N/A",
+            feedback=feedback,
+        )
+    else:
+        return VISUAL_RETRY_TIER_3.format(
+            attempt=attempt,
+            max_attempts=max_attempts,
+            best_previous_visual_json=best_previous_visual_json or "N/A",
+            specific_fix_list=specific_fix_list or feedback,
+        )
+
 VISUAL_NO_RETRY = ""
+
+# Legacy support
+VISUAL_RETRY_SECTION = VISUAL_RETRY_TIER_1

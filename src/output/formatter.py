@@ -3,6 +3,8 @@ Output formatter — produces both structured JSON and human-readable screenplay
 
 This is the final LangGraph node that assembles all agent outputs into
 the two required output formats.
+
+Enhanced with retry telemetry in the final output.
 """
 
 import json
@@ -14,6 +16,7 @@ from src.output.templates import (
     AI_VISUAL_LINE,
     NO_IMAGE_LINE,
     QA_SCORES_TEMPLATE,
+    RETRY_TELEMETRY_TEMPLATE,
     make_stars,
 )
 
@@ -57,12 +60,28 @@ def format_final_output(state: BroadcastState) -> dict:
         }
         merged_segments.append(merged)
 
-    # ── Build structured JSON ──
+    # ── Build structured JSON with telemetry ──
+    retry_decisions = state.get("retry_decisions", [])
+    retry_history = state.get("retry_history", [])
+
     final_json = {
         "article_url": state.get("article_url", ""),
         "source_title": state.get("source_title", ""),
         "video_duration_sec": state.get("total_duration_sec", 0),
         "segments": merged_segments,
+        "quality_metadata": {
+            "qa_scores": state.get("qa_scores", {}),
+            "qa_checks": state.get("qa_checks", {}),
+            "qa_pass": state.get("qa_pass", False),
+            "retry_count": state.get("retry_count", 0),
+            "best_attempt_index": state.get("best_attempt_index", 0),
+            "total_attempts": len(retry_history),
+            "agent_retry_counts": {
+                "editor": state.get("editor_retry_count", 0),
+                "visual": state.get("visual_retry_count", 0),
+                "headline": state.get("headline_retry_count", 0),
+            },
+        },
     }
 
     # ── Build human-readable screenplay ──
@@ -131,6 +150,22 @@ def _build_screenplay(state: dict, merged_segments: list) -> str:
             avg_score=avg_score,
             pass_status=pass_status,
             retry_count=state.get("retry_count", 0),
+        ))
+
+    # ── Retry Telemetry ──
+    retry_history = state.get("retry_history", [])
+    if retry_history and len(retry_history) > 1:
+        score_progression = " → ".join(
+            f"{h.get('avg_score', 0):.1f}" for h in retry_history
+        )
+        best_idx = state.get("best_attempt_index", len(retry_history) - 1)
+        parts.append(RETRY_TELEMETRY_TEMPLATE.format(
+            total_attempts=len(retry_history),
+            score_progression=score_progression,
+            best_attempt=best_idx + 1,
+            editor_retries=state.get("editor_retry_count", 0),
+            visual_retries=state.get("visual_retry_count", 0),
+            headline_retries=state.get("headline_retry_count", 0),
         ))
 
     return "\n".join(parts)

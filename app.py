@@ -127,6 +127,27 @@ st.markdown("""
         margin-top: 0.5rem;
     }
     
+    .retry-decision-card {
+        background: #0f172a;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.8rem;
+        border: 1px solid #1e293b;
+    }
+    
+    .budget-bar {
+        background: #1e293b;
+        border-radius: 4px;
+        height: 8px;
+        overflow: hidden;
+    }
+    
+    .budget-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+    
     .stDownloadButton > button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         color: white !important;
@@ -171,9 +192,12 @@ def _run_pipeline(url: str):
     agents = [
         ("extract_article", "📥 Article Extraction"),
         ("generate_narration", "✍️ Narration Generation"),
+        ("pre_validate", "🔍 Pre-Validation"),
         ("plan_visuals", "🎬 Visual Packaging"),
         ("generate_headlines", "📰 Headline Generation"),
-        ("review_quality", "🔍 QA Review"),
+        ("post_validate", "🔍 Post-Validation"),
+        ("review_quality", "🏆 QA Review"),
+        ("select_best", "🎯 Best-of-N Selection"),
         ("format_output", "📄 Final Output"),
     ]
     agent_status = {name: "waiting" for name, _ in agents}
@@ -199,10 +223,20 @@ def _run_pipeline(url: str):
     # ── Stream execution ──
     completed_nodes = set()
     result = None
+    initial_state = {
+        "article_url": url,
+        "retry_count": 0,
+        "errors": [],
+        "editor_retry_count": 0,
+        "visual_retry_count": 0,
+        "headline_retry_count": 0,
+        "retry_history": [],
+        "retry_decisions": [],
+    }
 
     try:
         for event in app.stream(
-            {"article_url": url, "retry_count": 0, "errors": []},
+            initial_state,
             config={"callbacks": [langfuse_handler]},
             stream_mode="updates",
         ):
@@ -227,7 +261,7 @@ def _run_pipeline(url: str):
                 # Show retry info if applicable
                 retry_count = node_output.get("retry_count", 0) if isinstance(node_output, dict) else 0
                 if retry_count > 1:
-                    retry_info.info(f"🔄 Retry round {retry_count - 1}/3")
+                    retry_info.info(f"🔄 Retry round {retry_count - 1} | Budget: Editor {node_output.get('editor_retry_count', 0)}/5, Visual {node_output.get('visual_retry_count', 0)}/5, Headline {node_output.get('headline_retry_count', 0)}/5")
 
                 # Mark next nodes as running
                 found_current = False
@@ -245,10 +279,9 @@ def _run_pipeline(url: str):
                 # Capture result
                 result = node_output
 
-        # ── Get final result by invoking once more (stream doesn't return merged state) ──
-        # Actually, let's reconstruct from the session
+        # ── Get final result ──
         final_result = app.invoke(
-            {"article_url": url, "retry_count": 0, "errors": []},
+            initial_state,
             config={"callbacks": [langfuse_handler]},
         )
 
@@ -289,19 +322,26 @@ def _display_results(result: dict):
                 st.caption(stars)
 
         # Pass/fail status
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
             avg = round(sum(qa_scores.values()) / len(qa_scores), 1) if qa_scores else 0
             status = "✅ PASSED" if result.get("qa_pass") else "⚠️ Best Effort"
             st.metric("Overall Average", f"{avg}/5")
             st.caption(status)
         with col2:
-            st.metric("Retries Used", f"{result.get('retry_count', 0)}/3")
+            st.metric("QA Cycles", f"{result.get('retry_count', 0)}")
+        with col3:
+            history = result.get("retry_history", [])
+            best_idx = result.get("best_attempt_index", 0)
+            if history:
+                st.metric("Best Attempt", f"#{best_idx + 1} of {len(history)}")
+            else:
+                st.metric("Best Attempt", "1st pass")
 
     st.markdown("---")
 
     # ── Output Tabs ──
-    tab1, tab2, tab3 = st.tabs(["📄 Screenplay", "📊 JSON Output", "ℹ️ Extraction Info"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📄 Screenplay", "📊 JSON Output", "🔄 Retry Decisions", "ℹ️ Extraction Info"])
 
     with tab1:
         _display_screenplay(result)
@@ -320,6 +360,9 @@ def _display_results(result: dict):
         )
 
     with tab3:
+        _display_retry_decisions(result)
+
+    with tab4:
         st.markdown(f"**Title:** {result.get('source_title', 'N/A')}")
         st.markdown(f"**URL:** {result.get('article_url', 'N/A')}")
 
@@ -340,6 +383,115 @@ def _display_results(result: dict):
             st.warning(f"⚠️ {len(errors)} warnings during processing:")
             for err in errors:
                 st.text(f"  • {err}")
+
+
+def _display_retry_decisions(result: dict):
+    """Display the retry decision timeline and agent budget usage."""
+
+    retry_decisions = result.get("retry_decisions", [])
+    retry_history = result.get("retry_history", [])
+
+    if not retry_decisions and not retry_history:
+        st.info("🎯 No retries were needed — passed on first attempt!")
+        return
+
+    # ── Agent Budget Usage ──
+    st.subheader("🔋 Agent Retry Budgets")
+    budget_cols = st.columns(3)
+
+    agents = [
+        ("editor", "✍️ Editor", result.get("editor_retry_count", 0)),
+        ("visual", "🎬 Visual", result.get("visual_retry_count", 0)),
+        ("headline", "📰 Headline", result.get("headline_retry_count", 0)),
+    ]
+
+    for i, (key, label, count) in enumerate(agents):
+        with budget_cols[i]:
+            pct = count / 5 * 100
+            color = "#10b981" if count == 0 else "#f59e0b" if count <= 2 else "#ef4444"
+            st.markdown(f"**{label}**: {count}/5 retries used")
+            st.progress(min(count / 5, 1.0))
+
+    # ── Score Progression Chart ──
+    if retry_history and len(retry_history) > 1:
+        st.subheader("📈 Score Progression")
+
+        # Build data for chart
+        chart_data = {
+            "Attempt": [],
+            "Avg Score": [],
+            "Composite": [],
+        }
+        for i, h in enumerate(retry_history):
+            chart_data["Attempt"].append(f"#{i+1}")
+            chart_data["Avg Score"].append(round(h.get("avg_score", 0), 1))
+            chart_data["Composite"].append(round(h.get("composite_score", 0) * 5, 1))
+
+        st.line_chart(
+            {"Avg Score (1-5)": [h.get("avg_score", 0) for h in retry_history],
+             "Composite (0-5)": [h.get("composite_score", 0) * 5 for h in retry_history]},
+        )
+
+        # Best attempt highlight
+        best_idx = result.get("best_attempt_index", 0)
+        if best_idx < len(retry_history):
+            best = retry_history[best_idx]
+            st.success(
+                f"🏆 **Best attempt: #{best_idx + 1}** — "
+                f"Avg: {best.get('avg_score', 0):.1f}/5, "
+                f"Composite: {best.get('composite_score', 0):.3f}"
+            )
+
+    # ── Decision Timeline ──
+    if retry_decisions:
+        st.subheader("📋 Decision Timeline")
+
+        for i, decision in enumerate(retry_decisions):
+            cycle = decision.get("cycle", i)
+            route = decision.get("route_decision", "unknown")
+            reason = decision.get("route_reason", "")
+            targets = decision.get("failure_targets", [])
+            scores = decision.get("scores", {})
+            avg = decision.get("avg_score", 0)
+
+            # Icon based on route
+            if route == "select_best":
+                icon = "✅"
+                route_label = "Finalize (select best)"
+            elif "retry" in route:
+                icon = "🔄"
+                route_label = f"Retry → {route.replace('retry_', '').replace('_gate', '')}"
+            else:
+                icon = "ℹ️"
+                route_label = route
+
+            with st.expander(f"{icon} Cycle {cycle + 1}: {route_label} (avg: {avg:.1f}/5)"):
+                # Scores
+                if scores:
+                    score_text = " | ".join(f"{k}: {v}/5" for k, v in scores.items())
+                    st.markdown(f"**Scores:** {score_text}")
+
+                # Checks
+                checks = decision.get("checks", {})
+                if checks:
+                    passed = [k for k, v in checks.items() if v]
+                    failed = [k for k, v in checks.items() if not v]
+                    if passed:
+                        st.markdown(f"**Passed:** {', '.join(passed)}")
+                    if failed:
+                        st.markdown(f"**Failed:** {', '.join(failed)}")
+
+                # Route decision
+                st.markdown(f"**Decision:** {route_label}")
+                st.markdown(f"**Reason:** {reason}")
+                if targets:
+                    st.markdown(f"**Targets:** {', '.join(targets)}")
+
+                # Budgets
+                budgets = decision.get("budgets", {})
+                if budgets:
+                    budget_text = " | ".join(f"{k}: {v}" for k, v in budgets.items())
+                    st.markdown(f"**Budgets:** {budget_text}")
 
 
 def _display_screenplay(result: dict):

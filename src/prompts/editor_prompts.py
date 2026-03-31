@@ -3,6 +3,11 @@ Prompts for the News Editor Agent.
 
 The Editor identifies story beats and writes broadcast-style anchor narration
 with precise timing calculations.
+
+Includes 3-tier progressive escalation for retries:
+  Tier 1: Standard retry with QA feedback
+  Tier 2: Previous output as diff context + stricter tone
+  Tier 3: Best previous output + surgical fix list (final attempt)
 """
 
 EDITOR_SYSTEM_PROMPT = """You are a senior TV news editor at a major broadcast network. Your job is to take a news article and convert it into a professional anchor-style narration script for a 60-120 second news broadcast segment.
@@ -48,11 +53,80 @@ Generate:
 3. Calculate timing at 2.5 words per second (150 WPM)
 4. Ensure total duration is between 60-120 seconds"""
 
-EDITOR_RETRY_SECTION = """⚠️ IMPORTANT — REVISION REQUIRED:
+# ═══════════════════════════════════════
+# Progressive Retry Templates (3 tiers)
+# ═══════════════════════════════════════
+
+EDITOR_RETRY_TIER_1 = """⚠️ REVISION REQUIRED (Attempt {attempt} of {max_attempts}):
 Your previous attempt was reviewed by QA and needs improvement.
 Fix these specific issues:
 {feedback}
 
 Keep the parts that were good. Only revise the segments/issues mentioned above."""
 
+EDITOR_RETRY_TIER_2 = """⚠️ CRITICAL REVISION — ATTEMPT {attempt} OF {max_attempts}:
+Your previous {prev_attempts} attempt(s) did not pass QA. Average score: {prev_avg}/5.
+
+YOUR PREVIOUS SEGMENTS (for reference — fix issues, keep what works):
+{previous_segments_json}
+
+QA FEEDBACK:
+{feedback}
+
+RULES FOR THIS REVISION:
+- You MUST change the specific segments mentioned in the feedback
+- Do NOT regenerate segments that were NOT mentioned in feedback
+- Keep all factual content accurate to the source article
+- Ensure total duration stays within 60-120 seconds"""
+
+EDITOR_RETRY_TIER_3 = """🚨 FINAL ATTEMPT — ATTEMPT {attempt} OF {max_attempts}:
+Your previous attempts scored: {score_history}. This is one of your last chances.
+
+YOUR BEST PREVIOUS SEGMENTS (highest scoring version):
+{best_previous_segments_json}
+
+REMAINING ISSUES TO FIX (fix ONLY these, change NOTHING else):
+{specific_fix_list}
+
+CRITICAL: Output the complete corrected set of segments. Change only the items listed above."""
+
+# ── Tier selection helper ──
+def get_editor_retry_section(
+    attempt: int,
+    max_attempts: int,
+    feedback: str,
+    previous_segments_json: str = "",
+    prev_avg: float = 0.0,
+    score_history: str = "",
+    best_previous_segments_json: str = "",
+    specific_fix_list: str = "",
+) -> str:
+    """Returns the appropriate retry prompt tier based on attempt number."""
+    if attempt <= 2:
+        return EDITOR_RETRY_TIER_1.format(
+            attempt=attempt,
+            max_attempts=max_attempts,
+            feedback=feedback,
+        )
+    elif attempt <= 4:
+        return EDITOR_RETRY_TIER_2.format(
+            attempt=attempt,
+            max_attempts=max_attempts,
+            prev_attempts=attempt - 1,
+            prev_avg=prev_avg,
+            previous_segments_json=previous_segments_json or "N/A",
+            feedback=feedback,
+        )
+    else:
+        return EDITOR_RETRY_TIER_3.format(
+            attempt=attempt,
+            max_attempts=max_attempts,
+            score_history=score_history or "N/A",
+            best_previous_segments_json=best_previous_segments_json or "N/A",
+            specific_fix_list=specific_fix_list or feedback,
+        )
+
 EDITOR_NO_RETRY = ""  # Empty when no retry needed
+
+# Legacy support
+EDITOR_RETRY_SECTION = EDITOR_RETRY_TIER_1
