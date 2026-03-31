@@ -568,7 +568,7 @@ graph TD
 |---|---|---|
 | **Sequential flow** | `START → extract_article → generate_narration` — Editor must wait for extraction | `graph.py` lines: `add_edge(START, "extract_article")`, `add_edge("extract_article", "generate_narration")` |
 | **Parallel step** | `generate_narration → [plan_visuals, generate_headlines]` — two edges from same node | `graph.py` lines: `add_edge("generate_narration", "plan_visuals")`, `add_edge("generate_narration", "generate_headlines")` |
-| **Fan-in sync** | Both visuals + headlines must complete before QA runs | `graph.py` lines: `add_edge("plan_visuals", "review_quality")`, `add_edge("generate_headlines", "review_quality")` |
+| **Fan-in sync** | Both visuals + headlines must complete before QA runs | `graph.py lines: `add_edge("plan_visuals", "review_quality")`, `add_edge("generate_headlines", "review_quality")` |
 | **Conditional edges** | `route_after_qa()` returns one of 5 routing strings | `graph.py`: `add_conditional_edges("review_quality", route_after_qa, {...})` |
 | **Evaluation + retry** | QA scores, determines pass/fail, identifies failing agent | `agents/qa.py`: `_evaluate_pass()`, `_determine_failure_targets()` |
 | **Skip unnecessary paths** | If QA passes → finalize immediately, no retries | Router returns `"finalize"` when `state["qa_pass"] == True` |
@@ -1064,9 +1064,9 @@ The Streamlit interface provides:
 ┌─────────────────────────────────────────────────────────┐
 │  📺 LOQO AI                                             │
 │  News URL to Dynamic Broadcast Screenplay Generator      │
-├─────────────────────────────────────────────────────────┤
+│  ├─────────────────────────────────────────────────────────┤
 │  [Enter News Article URL_______________________] [▶ GO] │
-├─────────────────────────────────────────────────────────┤
+│  ├─────────────────────────────────────────────────────────┤
 │  ⚡ Pipeline Progress                                    │
 │  ✅ Article Extraction — Done                            │
 │  ✅ Narration Generation — Done                          │
@@ -1074,12 +1074,12 @@ The Streamlit interface provides:
 │  ⏳ Headline Generation — Running                        │
 │  ⬜ QA Review — Waiting                                  │
 │  ⬜ Final Output — Waiting                               │
-├─────────────────────────────────────────────────────────┤
+│  ├─────────────────────────────────────────────────────────┤
 │  📊 Quality Scores                                       │
 │  Structure: ★★★★☆  Hook: ★★★★★  Narration: ★★★★☆      │
 │  Visuals: ★★★★★    Headlines: ★★★★☆                    │
 │  Average: 4.4/5 ✅ PASSED | Retries: 1/3                │
-├─────────────────────────────────────────────────────────┤
+│  ├─────────────────────────────────────────────────────────┤
 │  [📄 Screenplay] [📊 JSON] [ℹ️ Info]                    │
 │  ┌─────────────────────────────────────────────────┐    │
 │  │ SEGMENT 1 [00:00-00:10]                         │    │
